@@ -1,38 +1,56 @@
-# import cv2 as cv
-# import numpy as np
+import os
+import cv2 as cv
+import torch
+import numpy as np
+from scipy.io import loadmat
 
-# img = cv.imread('C:/Users/Ankur/Downloads/harshita.jpg')
-# cv.imshow('Catty', img) 
+def load_metadata(meta_data_path, image_folder):
+  
+    pairs = []
+    labels = []
+    
+    # Iterate over each subfolder in the image folder
+    for relation_folder in os.listdir(image_folder):
+        relation_path = os.path.join(image_folder, relation_folder)
+        # Corresponding .mat file
+        mat_file = os.path.join(meta_data_path, f"{relation_folder}.mat")
+        
+        data = loadmat(mat_file)['pairs']
+        for pair in data:
+                # Extract image filenames and construct full paths
+                img1 = os.path.join(relation_path, str(pair[2][0]))
+                img2 = os.path.join(relation_path, str(pair[3][0]))
+                label = pair[1][0]  # 1 for similar, 0 for dissimilar
+                
+                pairs.append((img1, img2))
+                labels.append(label)
+    return pairs, labels
+   
+def preprocess_image(image_path):
+    """
+    Preprocess an image by resizing and normalizing.
+    """
+    image = cv.imread(image_path)
+ 
+    image_resized = cv.resize(image, (224, 224))
+    image_normalized = image_resized / 255.0  # Normalize to [0, 1]
+    image_transposed = np.transpose(image_normalized, (2, 0, 1))  # Change to (C, H, W) format
+    return torch.tensor(image_transposed, dtype=torch.float32)
 
-# gray=cv.cvtColor(img,cv.COLOR_BGR2GRAY)
-# cv.imshow('Gray', gray)
+def loadmat_data(meta_data_path, image_folder):
+    pairs, labels = load_metadata(meta_data_path, image_folder)
+  
+    preprocessed_pairs = []
+    for img1_path, img2_path in pairs:
 
-# #simple thresholding
+            img1 = preprocess_image(img1_path)
+            img2 = preprocess_image(img2_path)
+            preprocessed_pairs.append((img1, img2))
 
-# threshold,thresh=cv.threshold(gray,150,255,cv.THRESH_BINARY)
-# cv.imshow('Simple Threshold', thresh)
+    # Convert labels to numpy array first, then to a torch tensor
+    labels_np = np.array(labels, dtype=np.float32)
+    return preprocessed_pairs, torch.tensor(labels_np, dtype=torch.float32)
 
-# Adp =cv.adaptiveThreshold(gray,255,cv.ADAPTIVE_THRESH_MEAN_C,cv.THRESH_BINARY_INV,11,3)
-# cv.imshow('Adaptive Thresh',Adp)
+# Example usage:
 
-# haar_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
-# faces_rect = haar_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3)
 
-# for(x, y, w, h) in faces_rect:
-#     cv.rectangle(img, (x,y), (x+w, y+h), (0,255,0), thickness=2)
-
-# cv.imshow('Detected Faces', img)
-
-# average = cv.blur(img, (500, 500))
-# cv.imshow("Average", average)
-
-# blank=np.zeros(img.shape[:2], dtype='uint8')   
-# cv.imshow('Blank Image', blank)
-
-# mask=cv.circle(blank,(img.shape[1]//2,img.shape[0]//2),100,255,-1)
-# cv.imshow('Mask',mask)
-
-# masked=cv.bitwise_and(img,img,mask=mask)
-# cv.imshow('Masked Image',masked)
-
-# cv.waitKey(0)
